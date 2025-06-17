@@ -38,33 +38,50 @@ def chunk_text(text, chunk_size=CHUNK_SIZE):
         chunks.append(buf.strip())
     return chunks
 
+
+# === ファイルが存在するか確認 ===
+files = glob.glob(f"{DATA_DIR}/*.*")
+if not files:
+    print(f"[!] エラー: '{DATA_DIR}' フォルダに処理対象ファイルがありません。")
+    exit(1)
+
 # === ファイルを読み込んでチャンクごとにベクトル化・Qdrant登録 ===
-for filepath in glob.glob(f"{DATA_DIR}/*.*"):
-    with open(filepath, "r", encoding="utf-8") as f:
-        text = f.read()
-    title = Path(filepath).stem
-    chunks = chunk_text(text)
+for filepath in files:
+    try:
+        print(f"\n[+] ファイル読み込み中: {filepath}")
+        with open(filepath, "r", encoding="utf-8") as f:
+            text = f.read()
+        title = Path(filepath).stem
+        chunks = chunk_text(text)
 
-    print(f"\n[+] 処理中: {title} ({len(chunks)}チャンク)")
+        if not chunks:
+            print(f"[!] スキップ: 空のテキスト or チャンクなし -> {title}")
+            continue
 
-    vectors = model.encode(chunks, show_progress_bar=True)
+        print(f"[✓] チャンク数: {len(chunks)} - ベクトル化中...")
+        vectors = model.encode(chunks, show_progress_bar=True)
 
-    points = []
-    for i, (vec, chunk) in enumerate(zip(vectors, chunks)):
-        points.append(PointStruct(
-            id=str(uuid.uuid4()),
-            vector=vec.tolist(),
-            payload={
-                "title": title,
-                "chunk_id": i + 1,
-                "summary": chunk,
-                "source": os.path.basename(filepath),
-            }
-        ))
+        points = []
+        for i, (vec, chunk) in enumerate(zip(vectors, chunks)):
+            points.append(PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vec.tolist(),
+                payload={
+                    "title": title,
+                    "chunk_id": i + 1,
+                    "summary": chunk,
+                    "source": os.path.basename(filepath),
+                }
+            ))
 
-    client.upsert(collection_name=COLLECTION_NAME, points=points)
+        client.upsert(collection_name=COLLECTION_NAME, points=points)
+        print(f"[✓] 登録完了: {title} ({len(points)} 件)")
+
+    except Exception as e:
+        print(f"[!] エラー: {filepath} の処理中に問題が発生しました -> {e}")
 
 print("\n[✓] 登録完了")
+
 
 # === CLI検索 ===
 while True:
@@ -72,7 +89,7 @@ while True:
     if query.lower() == 'q':
         break
     vec = model.encode(query).tolist()
-    results = client.search(collection_name=COLLECTION_NAME, query_vector=vec, top=3)
+    results = client.search(collection_name=COLLECTION_NAME, query_vector=vec, limit=3)
 
     print("\n--- 検索結果 ---")
     for r in results:
