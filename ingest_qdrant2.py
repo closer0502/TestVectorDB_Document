@@ -132,7 +132,7 @@ def ingest_directory(args):
 
     files = glob.glob(os.path.join(args.data_dir, "*.*"))
     if not files:
-        print(f"[!] '{args.data_dir}' is empty – nothing to ingest")
+        print(f"[!] '{args.data_dir}' is empty - nothing to ingest")
         return
 
     for fp in files:
@@ -149,7 +149,7 @@ def ingest_directory(args):
                 print(f"[!] Skipped empty file: {fp}")
                 continue
 
-            print(f"\n[+] {title}: {len(chunks)} chunks – encoding vectors …")
+            print(f"\n[+] {title}: {len(chunks)} chunks - encoding vectors …")
             vectors = model.encode(chunks, show_progress_bar=True)
 
             points = []
