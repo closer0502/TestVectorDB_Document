@@ -1,6 +1,6 @@
-"""Core logic for semantic search against a Qdrant collection.
-This file **should not** be executed directly. It exposes a `SearchEngine`
-class that can be reused by CLI / FastAPI front-ends.
+"""Qdrantコレクションに対するセマンティック検索のコアロジック。
+このファイルは直接実行**すべきではありません**。CLI / FastAPIフロントエンドで
+再利用可能な `SearchEngine` クラスを公開しています。
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ DEFAULT_COLLECTION = os.getenv("QDRANT_COLLECTION", "documents")
 
 
 class SearchEngine:
-    """Lightweight wrapper around Qdrant similarity search."""
+    """Qdrant類似度検索の軽量ラッパー。"""
 
     def __init__(
         self,
@@ -30,12 +30,12 @@ class SearchEngine:
         self.collection = collection
         self.client = QdrantClient(host, port=port)
         self.model = SentenceTransformer(model_name)
-        # quick sanity check: raise if collection doesn't exist
+        # 簡単な健全性チェック: コレクションが存在しない場合は例外を発生
         if collection not in [c.name for c in self.client.get_collections().collections]:
             raise ValueError(f"Collection '{collection}' does not exist on Qdrant@{host}:{port}")
 
     def query(self, text: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Return a list of payload dicts with an added 'score' field."""
+        """'score'フィールドが追加されたペイロード辞書のリストを返す。"""
         vec = self.model.encode(text).tolist()
         res = self.client.search(
             collection_name=self.collection,

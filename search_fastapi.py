@@ -1,10 +1,10 @@
-"""FastAPI wrapper exposing /search endpoint using SearchEngine."""
+"""SearchEngineを使用して/searchエンドポイントを公開するFastAPIラッパー。"""
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from search import SearchEngine
 
-app = FastAPI(title="Qdrant Semantic Search API")
-engine = SearchEngine()  # uses env vars / defaults
+app = FastAPI(title="Qdrant セマンティック検索 API")
+engine = SearchEngine()  # 環境変数 / デフォルト値を使用
 
 
 class SearchRequest(BaseModel):
@@ -15,7 +15,7 @@ class SearchRequest(BaseModel):
 @app.post("/search")
 async def search(req: SearchRequest):
     if not req.query.strip():
-        raise HTTPException(status_code=400, detail="Empty query")
+        raise HTTPException(status_code=400, detail="空のクエリ")
     try:
         hits = engine.query(req.query, limit=req.limit)
         return {"results": hits}
@@ -25,4 +25,4 @@ async def search(req: SearchRequest):
 
 @app.get("/")
 async def root():
-    return {"msg": "Use POST /search with {'query': '...', 'limit': N}"}
+    return {"msg": "POST /search を使用してください。形式: {'query': '...', 'limit': N}"}

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
-Ingest Markdown / text files into Qdrant.
-- Splits each file into fixed-length chunks (default 500 chars)
-- Generates deterministic point IDs so re-running does **not** create duplicates
-- Upserts vectors + payload into a target collection
-Usage::
+MarkdownやテキストファイルをQdrantにインジェストする。
+- 各ファイルを固定長のチャンク（デフォルト500文字）に分割
+- 決定論的なポイントIDを生成するため、再実行時に重複を作成しない
+- ベクトル + ペイロードをターゲットコレクションにアップサート
+使用法::
     python ingest_qdrant.py --data_dir texts --collection documents
 """
 
@@ -25,17 +25,17 @@ MODEL_NAME = "all-MiniLM-L6-v2"  # 日本語のみ→"bge-small-ja" など
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Ingest text/markdown files into Qdrant")
-    parser.add_argument("--data_dir", type=str, default="texts", help="Directory with .txt / .md files")
-    parser.add_argument("--collection", type=str, default="documents", help="Qdrant collection name")
-    parser.add_argument("--chunk", type=int, default=DEFAULT_CHUNK_SIZE, help="Chunk size in characters")
-    parser.add_argument("--host", type=str, default="localhost", help="Qdrant host")
-    parser.add_argument("--port", type=int, default=6333, help="Qdrant REST port")
+    parser = argparse.ArgumentParser(description="テキスト/markdownファイルをQdrantにインジェスト")
+    parser.add_argument("--data_dir", type=str, default="texts", help=".txt / .md ファイルのディレクトリ")
+    parser.add_argument("--collection", type=str, default="documents", help="Qdrantコレクション名")
+    parser.add_argument("--chunk", type=int, default=DEFAULT_CHUNK_SIZE, help="文字数でのチャンクサイズ")
+    parser.add_argument("--host", type=str, default="localhost", help="Qdrantホスト")
+    parser.add_argument("--port", type=int, default=6333, help="Qdrant RESTポート")
     return parser.parse_args()
 
 
 def chunk_text(text: str, size: int):
-    """Split text into \n-aware chunks of approximately <size> characters."""
+    """テキストを改行を考慮して約<size>文字のチャンクに分割する。"""
     chunks, buf = [], ""
     for line in text.splitlines():
         if not line.strip():
@@ -50,7 +50,7 @@ def chunk_text(text: str, size: int):
 
 
 def deterministic_id(title: str, chunk_idx: int) -> str:
-    """Return stable 128-bit hex id based on title+chunk index."""
+    """タイトル+チャンクインデックスに基づく安定した128ビットhex idを返す。"""
     raw = f"{title.lower()}::{chunk_idx}".encode()
     return hashlib.md5(raw).hexdigest()
 

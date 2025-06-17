@@ -1,4 +1,4 @@
-"""Simple interactive CLI on top of search.py/SearchEngine."""
+"""search.py/SearchEngineの上に構築されたシンプルなインタラクティブCLI。"""
 import argparse
 from textwrap import indent
 
@@ -6,7 +6,7 @@ from search import SearchEngine
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Interactive CLI for Qdrant semantic search")
+    p = argparse.ArgumentParser(description="Qdrantセマンティック検索のインタラクティブCLI")
     p.add_argument("--collection", default="documents")
     p.add_argument("--host", default="localhost")
     p.add_argument("--port", type=int, default=6333)
@@ -18,7 +18,7 @@ def main():
     args = parse_args()
     engine = SearchEngine(collection=args.collection, host=args.host, port=args.port)
 
-    print("[✓] Semantic search CLI ready. Type your query (q to quit)\n")
+    print("[✓] セマンティック検索CLI準備完了。クエリを入力してください (qで終了)\n")
     while True:
         try:
             q = input("🔍 ")
@@ -30,7 +30,7 @@ def main():
             continue
         hits = engine.query(q, limit=args.limit)
         if not hits:
-            print("[!] No hits\n")
+            print("[!] ヒットなし\n")
             continue
         for h in hits:
             print("—" * 60)
