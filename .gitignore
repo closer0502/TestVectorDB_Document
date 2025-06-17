@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+
+# Qdrant data
+qdrant_data/
+
+# Embeddings
+embeddings/
+
+# Texts
+texts/
