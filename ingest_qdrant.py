@@ -9,9 +9,10 @@ Markdown・テキスト・PDFファイルをQdrantにインジェストするス
 - 決定論的なポイントID生成（再実行時に重複を作成しない）
 
 使用例:
-    python ingest_qdrant4.py --data_dir texts --collection documents
-    python ingest_qdrant4.py --mode markdown --chunk 500 --collection docs
-    python ingest_qdrant4.py --mode markdown-smart --chunk 500 --collection docs
+    python ingest_qdrant.py --mode fixed
+    python ingest_qdrant.py --data_dir texts --collection documents
+    python ingest_qdrant.py --mode markdown --chunk 500 --collection docs
+    python ingest_qdrant.py --mode markdown-smart --chunk 500 --collection docs
 """
 
 import argparse
@@ -128,6 +129,21 @@ def extract_text_from_pdf(filepath: str) -> str:
     return "\n".join([page.get_text() for page in doc])
 
 
+def extract_text_from_pdf_chunks(filepath: str) -> list[tuple[int, str]]:
+    """ 
+    PDFファイルからページごとにテキストを抽出する関数。
+
+    Args:
+        filepath (str): PDFファイルのパス
+
+    Returns:
+        list[tuple[int, str]]: ページ番号とテキストのタプルのリスト
+    """
+
+    doc = fitz.open(filepath)
+    return [(page.number + 1, page.get_text()) for page in doc]
+
+
 def deterministic_id(title: str, chunk_idx: int) -> str:
     """
     タイトルとチャンク番号から決定論的なID（MD5ハッシュ）を生成する関数。
@@ -159,8 +175,78 @@ def ensure_collection(client: QdrantClient, name: str, dim: int):
         )
         print(f"[+] コレクション '{name}' を作成しました")
 
-
 def ingest_directory(args):
+    """
+    指定ディレクトリ内のテキスト/Markdown/PDFファイルをQdrantにインジェストするメイン関数。
+
+    Args:
+        args (argparse.Namespace): コマンドライン引数
+    """
+    model = SentenceTransformer(MODEL_NAME)
+    client = QdrantClient(args.host, port=args.port)
+    ensure_collection(client, args.collection, model.get_sentence_embedding_dimension())
+
+    files = glob.glob(os.path.join(args.data_dir, "*.*"))
+    if not files:
+        print(f"[!] '{args.data_dir}' ディレクトリが空です。インジェストするファイルがありません。")
+        return
+
+    for fp in files:
+        try:
+            ext = Path(fp).suffix.lower()
+            title = Path(fp).stem
+
+            if ext == ".pdf":
+                page_chunks = extract_text_from_pdf_chunks(fp)
+                chunks, metadata = [], []
+                for page_num, text in page_chunks:
+                    split = chunk_text_fixed(text, args.chunk)
+                    chunks.extend(split)
+                    metadata.extend([page_num] * len(split))
+            else:
+                with open(fp, "r", encoding="utf-8") as f:
+                    text = f.read()
+                if args.mode == "markdown-smart" and ext != ".pdf":
+                    chunks = chunk_text_markdown_smart(text, args.chunk)
+                elif args.mode == "markdown" and ext != ".pdf":
+                    chunks = chunk_text_markdown(text)
+                else:
+                    chunks = chunk_text_fixed(text, args.chunk)
+                metadata = [None] * len(chunks)
+
+            if not chunks:
+                print(f"[!] 空ファイルをスキップ: {fp}")
+                continue
+
+            print(f"\n[+] {title}: {len(chunks)} チャンク - ベクトルをエンコード中 …")
+            vectors = model.encode(chunks, show_progress_bar=True)
+
+            points = []
+            for idx, (vec, body) in enumerate(zip(vectors, chunks), start=1):
+                payload = {
+                    "title": title,
+                    "chunk_id": idx,
+                    "summary": body,
+                    "source": os.path.basename(fp),
+                    "source_type": ext.lstrip(".")
+                }
+                if metadata[idx - 1] is not None:
+                    payload["page"] = metadata[idx - 1]
+                points.append(
+                    PointStruct(
+                        id=deterministic_id(title, idx),
+                        vector=vec.tolist(),
+                        payload=payload,
+                    )
+                )
+
+            client.upsert(args.collection, points)
+            print(f"[✓] {len(points)}件のポイントを '{title}' にアップサートしました")
+        except Exception as exc:
+            print(f"[!] {fp} の処理中にエラー: {exc}")
+
+
+def ingest_directory2(args):
     """
     指定ディレクトリ内のテキスト/Markdown/PDFファイルをQdrantにインジェストするメイン関数。
     
@@ -181,6 +267,7 @@ def ingest_directory(args):
             ext = Path(fp).suffix.lower()
             if ext == ".pdf":
                 text = extract_text_from_pdf(fp)
+                
             else:
                 with open(fp, "r", encoding="utf-8") as f:
                     text = f.read()
