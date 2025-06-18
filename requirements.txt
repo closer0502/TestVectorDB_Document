@@ -3,3 +3,4 @@ qdrant-client
 tqdm
 fastapi
 uvicorn[standard]
+PyMuPDF

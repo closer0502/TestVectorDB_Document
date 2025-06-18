@@ -1,4 +1,6 @@
-"""search.py/SearchEngineの上に構築されたシンプルなインタラクティブCLI。"""
+"""search.py/SearchEngineの上に構築されたシンプルなインタラクティブCLI。
+   python search_cli.py --limit 3
+"""
 import argparse
 from textwrap import indent
 

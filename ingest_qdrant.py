@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 """
-MarkdownやテキストファイルをQdrantにインジェストする。
-- 各ファイルを固定長のチャンク（デフォルト500文字）に分割
-- 決定論的なポイントIDを生成するため、再実行時に重複を作成しない
-- ベクトル + ペイロードをターゲットコレクションにアップサート
-使用法::
-    python ingest_qdrant.py --data_dir texts --collection documents
+Markdown・テキスト・PDFファイルをQdrantにインジェストするスクリプト。
+
+主な機能:
+- 固定長チャンク化（デフォルト）
+- Markdownヘッダーベースのチャンク化（--mode markdown）
+- スマートハイブリッドチャンク化（--mode markdown-smart）
+- 決定論的なポイントID生成（再実行時に重複を作成しない）
+
+使用例:
+    python ingest_qdrant4.py --data_dir texts --collection documents
+    python ingest_qdrant4.py --mode markdown --chunk 500 --collection docs
+    python ingest_qdrant4.py --mode markdown-smart --chunk 500 --collection docs
 """
 
 import argparse
@@ -14,32 +20,53 @@ import os
 import uuid
 from pathlib import Path
 import glob
+import re
+import fitz  # PyMuPDF
 
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
-DEFAULT_CHUNK_SIZE = 500
-MODEL_NAME = "all-MiniLM-L6-v2"  # 日本語のみ→"bge-small-ja" など
+DEFAULT_CHUNK_SIZE = 500  # デフォルトのチャンクサイズ（文字数）
+MODEL_NAME = "all-MiniLM-L6-v2"  # 埋め込みモデル名
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="テキスト/markdownファイルをQdrantにインジェスト")
-    parser.add_argument("--data_dir", type=str, default="texts", help=".txt / .md ファイルのディレクトリ")
+    """
+    コマンドライン引数を解析する関数。
+    
+    Returns:
+        argparse.Namespace: 解析された引数オブジェクト
+    """
+    parser = argparse.ArgumentParser(description="テキスト/markdown/pdfファイルをQdrantにインジェスト")
+    parser.add_argument("--data_dir", type=str, default="texts", help=".txt / .md / .pdf ファイルのディレクトリ")
     parser.add_argument("--collection", type=str, default="documents", help="Qdrantコレクション名")
-    parser.add_argument("--chunk", type=int, default=DEFAULT_CHUNK_SIZE, help="文字数でのチャンクサイズ")
+    parser.add_argument("--chunk", type=int, default=DEFAULT_CHUNK_SIZE, help="チャンクサイズ（文字数）")
+    parser.add_argument("--mode", type=str, choices=["fixed", "markdown", "markdown-smart"], default="fixed", help="チャンク化モード")
     parser.add_argument("--host", type=str, default="localhost", help="Qdrantホスト")
     parser.add_argument("--port", type=int, default=6333, help="Qdrant RESTポート")
     return parser.parse_args()
 
 
-def chunk_text(text: str, size: int):
-    """テキストを改行を考慮して約<size>文字のチャンクに分割する。"""
+def chunk_text_fixed(text: str, size: int):
+    """
+    テキストを固定長のチャンクに分割する関数。
+    
+    改行を考慮し、指定された文字数を目安にテキストを分割します。
+    空行は無視され、各チャンクは改行で区切られます。
+    
+    Args:
+        text (str): 分割対象のテキスト
+        size (int): チャンクの目安サイズ（文字数）
+    
+    Returns:
+        list[str]: 分割されたテキストチャンクのリスト
+    """
     chunks, buf = [], ""
     for line in text.splitlines():
         if not line.strip():
-            continue
+            continue  # 空行はスキップ
         buf += line.strip() + "\n"
         if len(buf) >= size:
             chunks.append(buf.strip())
@@ -49,42 +76,128 @@ def chunk_text(text: str, size: int):
     return chunks
 
 
+def chunk_text_markdown(text: str):
+    """
+    Markdownファイルをヘッダー（##）ごとに分割する関数。
+    
+    Args:
+        text (str): 分割対象のMarkdownテキスト
+    
+    Returns:
+        list[str]: セクションごとに分割されたテキストリスト
+    """
+    sections = re.split(r"(?=^##\s+)", text, flags=re.MULTILINE)
+    return [s.strip() for s in sections if s.strip()]
+
+
+def chunk_text_markdown_smart(text: str, size: int):
+    """
+    Markdownのセクションごとに分割し、さらに長いセクションは固定長で分割するスマートなチャンク化関数。
+    
+    Args:
+        text (str): 分割対象のMarkdownテキスト
+        size (int): チャンクの目安サイズ（文字数）
+    
+    Returns:
+        list[str]: 分割されたテキストチャンクのリスト
+    """
+    final_chunks = []
+    sections = re.split(r"(?=^##\s+)", text, flags=re.MULTILINE)
+    for s in sections:
+        s = s.strip()
+        if not s:
+            continue
+        if len(s) <= size * 1.5:
+            final_chunks.append(s)
+        else:
+            final_chunks.extend(chunk_text_fixed(s, size))
+    return final_chunks
+
+
+def extract_text_from_pdf(filepath: str) -> str:
+    """
+    PDFファイルからテキストを抽出する関数。
+    
+    Args:
+        filepath (str): PDFファイルのパス
+    
+    Returns:
+        str: 抽出されたテキスト
+    """
+    doc = fitz.open(filepath)
+    return "\n".join([page.get_text() for page in doc])
+
+
 def deterministic_id(title: str, chunk_idx: int) -> str:
-    """タイトル+チャンクインデックスに基づく安定した128ビットhex idを返す。"""
+    """
+    タイトルとチャンク番号から決定論的なID（MD5ハッシュ）を生成する関数。
+    
+    Args:
+        title (str): ファイル名やタイトル
+        chunk_idx (int): チャンク番号
+    
+    Returns:
+        str: 生成されたID文字列
+    """
     raw = f"{title.lower()}::{chunk_idx}".encode()
     return hashlib.md5(raw).hexdigest()
 
 
 def ensure_collection(client: QdrantClient, name: str, dim: int):
+    """
+    指定したコレクションが存在しない場合は新規作成する関数。
+    
+    Args:
+        client (QdrantClient): Qdrantクライアント
+        name (str): コレクション名
+        dim (int): ベクトル次元数
+    """
     if name not in [c.name for c in client.get_collections().collections]:
         client.create_collection(
             collection_name=name,
             vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
         )
-        print(f"[+] Created collection '{name}'")
+        print(f"[+] コレクション '{name}' を作成しました")
 
 
 def ingest_directory(args):
+    """
+    指定ディレクトリ内のテキスト/Markdown/PDFファイルをQdrantにインジェストするメイン関数。
+    
+    Args:
+        args (argparse.Namespace): コマンドライン引数
+    """
     model = SentenceTransformer(MODEL_NAME)
     client = QdrantClient(args.host, port=args.port)
     ensure_collection(client, args.collection, model.get_sentence_embedding_dimension())
 
     files = glob.glob(os.path.join(args.data_dir, "*.*"))
     if not files:
-        print(f"[!] '{args.data_dir}' is empty - nothing to ingest")
+        print(f"[!] '{args.data_dir}' ディレクトリが空です。インジェストするファイルがありません。")
         return
 
     for fp in files:
         try:
-            with open(fp, "r", encoding="utf-8") as f:
-                text = f.read()
+            ext = Path(fp).suffix.lower()
+            if ext == ".pdf":
+                text = extract_text_from_pdf(fp)
+            else:
+                with open(fp, "r", encoding="utf-8") as f:
+                    text = f.read()
+
             title = Path(fp).stem
-            chunks = chunk_text(text, args.chunk)
+            if args.mode == "markdown-smart" and ext != ".pdf":
+                chunks = chunk_text_markdown_smart(text, args.chunk)
+            elif args.mode == "markdown" and ext != ".pdf":
+                chunks = chunk_text_markdown(text)
+            else:
+                chunks = chunk_text_fixed(text, args.chunk)
+
             if not chunks:
-                print(f"[!] Skipped empty file: {fp}")
+                print(f"[!] 空ファイルをスキップ: {fp}")
                 continue
 
-            print(f"\n[+] {title}: {len(chunks)} chunks - encoding vectors …")
+            print(f"\n[+] {title}: {len(chunks)} チャンク - ベクトルをエンコード中 …")
             vectors = model.encode(chunks, show_progress_bar=True)
 
             points = []
@@ -98,14 +211,15 @@ def ingest_directory(args):
                             "chunk_id": idx,
                             "summary": body,
                             "source": os.path.basename(fp),
+                            "source_type": ext.lstrip(".")
                         },
                     )
                 )
 
             client.upsert(args.collection, points)
-            print(f"[✓] Upserted {len(points)} points for '{title}'")
+            print(f"[✓] {len(points)}件のポイントを '{title}' にアップサートしました")
         except Exception as exc:
-            print(f"[!] Error processing {fp}: {exc}")
+            print(f"[!] {fp} の処理中にエラー: {exc}")
 
 
 if __name__ == "__main__":

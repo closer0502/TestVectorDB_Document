@@ -1,4 +1,8 @@
-"""SearchEngineを使用して/searchエンドポイントを公開するFastAPIラッパー。"""
+"""SearchEngineを使用して/searchエンドポイントを公開するFastAPIラッパー。
+    環境変数でQdrantのホスト、ポート、コレクション名を設定できます。
+    デフォルトはそれぞれlocalhost、6333、documentsです。
+    uvicorn search_fastapi:app --reload
+"""
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from search import SearchEngine
