@@ -1,4 +1,5 @@
 @echo off
+chcp 65001
 echo [✓] Python仮想環境を作成中...
 python.exe -m pip install --upgrade pip
 python -m venv venv
@@ -8,7 +9,7 @@ call venv\Scripts\activate
 
 echo [✓] ライブラリをインストール中...
 python.exe -m pip install --upgrade pip
-python.exe -m pip install sentence-transformers qdrant-client tqdm
+python.exe -m pip install -r requirements.txt
 
 echo [✓] 必要なディレクトリを作成中...
 mkdir texts

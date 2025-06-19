@@ -174,6 +174,7 @@ def ensure_collection(client: QdrantClient, name: str, dim: int):
             vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
         )
         print(f"[+] コレクション '{name}' を作成しました")
+        
 
 def ingest_directory(args):
     """
@@ -190,6 +191,9 @@ def ingest_directory(args):
     if not files:
         print(f"[!] '{args.data_dir}' ディレクトリが空です。インジェストするファイルがありません。")
         return
+    
+    print(f"[+] {len(files)} 件のファイルを検出しました: {', '.join(os.path.basename(fp) for fp in files)}")
+    print("[+] ファイルを処理中 …")
 
     for fp in files:
         try:
