@@ -47,7 +47,7 @@ def parse_args(argv=None):
     parser.add_argument("--mode", type=str, choices=["fixed", "markdown", "markdown-smart"], default="fixed", help="チャンク化モード")
     parser.add_argument("--host", type=str, default="localhost", help="Qdrantホスト")
     parser.add_argument("--port", type=int, default=6333, help="Qdrant RESTポート")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def chunk_text_fixed(text: str, size: int):

@@ -30,14 +30,12 @@ class SearchEngine:
         self.collection = collection
         self.client = QdrantClient(host, port=port)
         self.model = SentenceTransformer(model_name)
-        self.enabled = collection in [c.name for c in self.client.get_collections().collections]
-        if not self.enabled:
-            print(f"[!] Collection '{collection}' does not exist on Qdrant@{host}:{port} — search will return empty results.")
 
     def query(self, text: str, limit: int = 5) -> List[Dict[str, Any]]:
         """'score'フィールドが追加されたペイロード辞書のリストを返す。"""
-        if not self.enabled:
+        if self.collection not in [c.name for c in self.client.get_collections().collections]:
             return []
+
         vec = self.model.encode(text).tolist()
         res = self.client.search(
             collection_name=self.collection,

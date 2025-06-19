@@ -47,7 +47,7 @@ async def ingest(
     with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    args = ingest_args()
+    args = ingest_args(argv=[])
     args.data_dir = UPLOAD_DIR
     args.collection = collection
     args.mode = mode
