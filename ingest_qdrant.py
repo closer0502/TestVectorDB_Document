@@ -232,7 +232,8 @@ def ingest_directory(args):
                     "chunk_id": idx,
                     "summary": body,
                     "source": os.path.basename(fp),
-                    "source_type": ext.lstrip(".")
+                    "source_type": ext.lstrip("."),
+                    "source_dir": os.path.basename(os.path.dirname(fp))
                 }
                 if metadata[idx - 1] is not None:
                     payload["page"] = metadata[idx - 1]

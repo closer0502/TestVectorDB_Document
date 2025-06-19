@@ -44,6 +44,11 @@ async def ingest(
 ):
     filename = file.filename
     dest = os.path.join(UPLOAD_DIR, filename)
+
+    if os.path.exists(dest):
+        os.remove(dest)
+        print(f"すでに存在する同名ファイルを削除しました: {dest}")
+
     with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
