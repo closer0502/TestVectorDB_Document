@@ -33,7 +33,7 @@ DEFAULT_CHUNK_SIZE = 500  # デフォルトのチャンクサイズ（文字数�
 MODEL_NAME = "all-MiniLM-L6-v2"  # 埋め込みモデル名
 
 
-def parse_args():
+def parse_args(argv=None):
     """
     コマンドライン引数を解析する関数。
     
@@ -249,69 +249,7 @@ def ingest_directory(args):
         except Exception as exc:
             print(f"[!] {fp} の処理中にエラー: {exc}")
 
-
-def ingest_directory2(args):
-    """
-    指定ディレクトリ内のテキスト/Markdown/PDFファイルをQdrantにインジェストするメイン関数。
     
-    Args:
-        args (argparse.Namespace): コマンドライン引数
-    """
-    model = SentenceTransformer(MODEL_NAME)
-    client = QdrantClient(args.host, port=args.port)
-    ensure_collection(client, args.collection, model.get_sentence_embedding_dimension())
-
-    files = glob.glob(os.path.join(args.data_dir, "*.*"))
-    if not files:
-        print(f"[!] '{args.data_dir}' ディレクトリが空です。インジェストするファイルがありません。")
-        return
-
-    for fp in files:
-        try:
-            ext = Path(fp).suffix.lower()
-            if ext == ".pdf":
-                text = extract_text_from_pdf(fp)
-                
-            else:
-                with open(fp, "r", encoding="utf-8") as f:
-                    text = f.read()
-
-            title = Path(fp).stem
-            if args.mode == "markdown-smart" and ext != ".pdf":
-                chunks = chunk_text_markdown_smart(text, args.chunk)
-            elif args.mode == "markdown" and ext != ".pdf":
-                chunks = chunk_text_markdown(text)
-            else:
-                chunks = chunk_text_fixed(text, args.chunk)
-
-            if not chunks:
-                print(f"[!] 空ファイルをスキップ: {fp}")
-                continue
-
-            print(f"\n[+] {title}: {len(chunks)} チャンク - ベクトルをエンコード中 …")
-            vectors = model.encode(chunks, show_progress_bar=True)
-
-            points = []
-            for idx, (vec, body) in enumerate(zip(vectors, chunks), start=1):
-                points.append(
-                    PointStruct(
-                        id=deterministic_id(title, idx),
-                        vector=vec.tolist(),
-                        payload={
-                            "title": title,
-                            "chunk_id": idx,
-                            "summary": body,
-                            "source": os.path.basename(fp),
-                            "source_type": ext.lstrip(".")
-                        },
-                    )
-                )
-
-            client.upsert(args.collection, points)
-            print(f"[✓] {len(points)}件のポイントを '{title}' にアップサートしました")
-        except Exception as exc:
-            print(f"[!] {fp} の処理中にエラー: {exc}")
-
 
 if __name__ == "__main__":
     ingest_directory(parse_args())

@@ -4,3 +4,4 @@ tqdm
 fastapi
 uvicorn[standard]
 PyMuPDF
+python-multipart
