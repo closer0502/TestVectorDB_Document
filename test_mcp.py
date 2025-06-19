@@ -64,8 +64,8 @@ async def ingest(
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@app.post("/delete_collection")
-async def delete_collection(
+@app.post("/delete_all_points")
+async def delete_all_points(
     collection: str = Form(...),
 ):
     cols = {c.name for c in qdrant.get_collections().collections}
@@ -87,6 +87,32 @@ async def delete_point(
         raise HTTPException(status_code=500, detail=f"Deletion failed: {e}")
 
 
+@app.post("/delete_uploaded_file")
+async def delete_uploaded_file(
+    filename: str = Form(...),
+):
+    path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"File '{filename}' not found in uploaded folder.")
+    try:
+        os.remove(path)
+        return {"status": "deleted", "filename": filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {e}")
+
+
+@app.post("/delete_uploaded_all_files")
+async def delete_uploaded_all_files():
+    try:
+        for file in os.listdir(UPLOAD_DIR):
+            full_path = os.path.join(UPLOAD_DIR, file)
+            if os.path.isfile(full_path):
+                os.remove(full_path)
+        return {"status": "deleted_all", "folder": UPLOAD_DIR}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete uploaded folder contents: {e}")
+
+
 @app.get("/")
 async def root():
-    return {"msg": "Use /search, /ingest, /delete_collection, /delete_point endpoints."}
+    return {"msg": "Use /search, /ingest, /delete_all_points, /delete_point, /delete_uploaded_file, /delete_uploaded_all_files endpoints."}
