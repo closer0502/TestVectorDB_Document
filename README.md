@@ -29,7 +29,7 @@ project-root/
 ## 🔧 前提条件・セットアップ
 
 ### 必要環境
-- Python 3.10+
+- Python 3.11.2
 - Docker（Qdrant用）
 
 ### 1. 依存関係のインストール
