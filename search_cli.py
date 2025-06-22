@@ -4,7 +4,7 @@
 import argparse
 from textwrap import indent
 
-from search import SearchEngine
+from vector_db.search import SearchEngine
 
 
 def parse_args():

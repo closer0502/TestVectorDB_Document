@@ -21,6 +21,9 @@ project-root/
 │   └── sample.md
 ├── embeddings/         # 一時ファイルやデバッグ用
 ├── qdrant_data/        # Docker用Qdrantデータ
+├── vector_db/
+│   ├── ingest.py          # インジェストロジック
+│   └── search.py          # 検索ロジック
 ├── text2qdrant.py      # メインスクリプト
 ├── requirements.txt    # 必要ライブラリ
 └── README.md          # このファイル
@@ -65,7 +68,7 @@ python text2qdrant.py
 
 ## ⚙️ 設定項目
 
-`text2qdrant.py`内で以下の設定を変更できます：
+`vector_db.ingest.parse_args` のデフォルト値を変更することで設定できます：
 
 ```python
 DATA_DIR = "texts"              # 入力ファイルディレクトリ

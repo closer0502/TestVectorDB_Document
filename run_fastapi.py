@@ -8,8 +8,8 @@ from typing import Optional
 import shutil
 import os
 
-from search import SearchEngine
-from ingest_qdrant import ingest_directory, parse_args as ingest_args, ensure_collection
+from vector_db.search import SearchEngine
+from vector_db.ingest import ingest_directory, parse_args as ingest_args, ensure_collection
 from qdrant_client import QdrantClient
 
 app = FastAPI(title="Qdrant Semantic Search API")

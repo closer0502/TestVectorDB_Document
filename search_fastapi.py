@@ -5,7 +5,7 @@
 """
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from search import SearchEngine
+from vector_db.search import SearchEngine
 
 app = FastAPI(title="Qdrant セマンティック検索 API")
 engine = SearchEngine()  # 環境変数 / デフォルト値を使用
