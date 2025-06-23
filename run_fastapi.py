@@ -1,8 +1,9 @@
 """
 使用例:
-    uvicorn test_mcp:app --reload
+    uvicorn run_fastapi:app --reload
 """
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi_mcp import FastApiMCP
 from pydantic import BaseModel
 from typing import Optional
 import shutil
@@ -13,6 +14,10 @@ from ingest_qdrant import ingest_directory, parse_args as ingest_args, ensure_co
 from qdrant_client import QdrantClient
 
 app = FastAPI(title="Qdrant Semantic Search API")
+# 追加: MCPサーバーのセットアップ
+mcp = FastApiMCP(app)
+mcp.mount()  # /mcp エンドポイントをFastAPIアプリに追加
+
 engine = SearchEngine()
 qdrant = QdrantClient("localhost", port=6333)
 

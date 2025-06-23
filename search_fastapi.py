@@ -10,7 +10,6 @@ from search import SearchEngine
 app = FastAPI(title="Qdrant セマンティック検索 API")
 engine = SearchEngine()  # 環境変数 / デフォルト値を使用
 
-
 class SearchRequest(BaseModel):
     query: str
     limit: int = 5
