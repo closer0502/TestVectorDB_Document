@@ -1,59 +1,89 @@
-# textboard_fastmcp.py
-from fastmcp import FastMCP, tool      # pip install fastmcp>=2.0
+"""
+FastMCP を使用したシンプルなテスト用サーバー
+文章の追加・取得・削除機能を提供
 
-mcp = FastMCP("TextBoard Server")
+使用例:
+    python test_server.py
+"""
+import datetime
+from typing import List, Dict, Any, Optional
+from fastmcp import FastMCP
 
-# ────────────────────────────────────
-# メッセージを保持するだけの超シンプル状態
-messages: list[str] = []
+# グローバル変数として文章を保存する配列
+messages: List[Dict[str, Any]] = []
+message_counter = 0
 
-# ① メッセージを追加
-@tool(
-    name="append_message",
-    description="Post a single text message to the shared board.",
-    input_schema={
-        "type": "object",
-        "properties": {"msg": {"type": "string"}},
-        "required": ["msg"]
-    },
-    output_schema={
-        "type": "object",
-        "properties": {
-            "status":    {"type": "string"},
-            "msg_count": {"type": "integer"}
-        },
-        "required": ["status", "msg_count"]
-    },
-)
-def append_message(msg: str) -> dict:        # ↖ 型ヒントは任意
-    messages.append(msg)
-    return {"status": "ok", "msg_count": len(messages)}
+# FastMCPサーバーの作成
+mcp = FastMCP("Simple Text Storage Server")
 
-# ② 全メッセージを取得
-@tool(
-    name="get_messages",
-    description="Return an array of all posted messages.",
-    input_schema={
-        "type": "object",
-        "properties": {}
-    },
-    output_schema={
-        "type": "object",
-        "properties": {
-            "messages": {
-                "type":  "array",
-                "items": {"type": "string"}
+
+@mcp.tool()
+def add_message(text: str, author: str = "Anonymous") -> Dict[str, Any]:
+    """文章をメッセージ配列に追加する（POST相当）"""
+    global message_counter
+    message_counter += 1
+    
+    message = {
+        "id": message_counter,
+        "text": text,
+        "author": author,
+        "timestamp": datetime.datetime.now().isoformat(),
+        "length": len(text)
+    }
+    
+    messages.append(message)
+    
+    return {
+        "status": "success",
+        "message": "Message added successfully",
+        "data": message,
+        "total_messages": len(messages)
+    }
+
+
+@mcp.tool()
+def get_messages(limit: int = 10, offset: int = 0) -> Dict[str, Any]:
+    """メッセージ配列を取得する（GET相当）"""
+    try:
+        # ページネーション
+        start = offset
+        end = offset + limit
+        paginated_messages = messages[start:end]
+        
+        return {
+            "status": "success",
+            "data": paginated_messages,
+            "pagination": {
+                "total": len(messages),
+                "limit": limit,
+                "offset": offset,
+                "returned": len(paginated_messages)
             }
-        },
-        "required": ["messages"]
-    },
-)
-def get_messages() -> dict:
-    return {"messages": messages}
+        }
+    except Exception as e:
+        return {"error": f"Failed to get messages: {str(e)}"}
 
-# エントリポイント ─────────────────
+
+
 if __name__ == "__main__":
-    # --transport sse で /mcp/messages/** が生える
-    # 8000 番で待ち受け。必要なら --host/--port で変更可
-    # python test_text_board_fmcp.py
-    mcp.run(transport="sse", host="0.0.0.0", port=8000)
+    # 初期データを追加（テスト用）
+    #add_message("Hello, World!", "System")
+    #add_message("This is a test message.", "TestUser")
+    #add_message("FastMCPを使ったシンプルなメッセージストレージです。", "Admin")
+    
+    print("Simple Text Storage Server starting...")
+    print("Available tools:")
+    print("- add_message: Add a new message")
+    print("- get_messages: Get all messages (with pagination)")
+    """
+    print("- get_message_by_id: Get specific message by ID")
+    print("- update_message: Update message text")
+    print("- delete_message: Delete message by ID")
+    print("- clear_all_messages: Delete all messages")
+    print("- get_statistics: Get message statistics")
+    print("- search_messages: Search messages by keyword")
+    print("- add_bulk_messages: Add multiple messages at once")
+    """
+    
+    
+    mcp.run()
