@@ -33,3 +33,6 @@ embeddings/
 # Texts
 texts/
 uploaded/
+
+# Draft source files
+draft_src/

@@ -10,7 +10,7 @@ import shutil
 import os
 
 from search import SearchEngine
-from ingest_qdrant import ingest_directory, parse_args as ingest_args, ensure_collection
+from vectorDB.ingest_qdrant import ingest_directory, parse_args as ingest_args, ensure_collection
 from qdrant_client import QdrantClient
 
 app = FastAPI(title="Qdrant Semantic Search API")
