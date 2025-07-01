@@ -29,24 +29,37 @@ from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
+
 DEFAULT_CHUNK_SIZE = 500  # デフォルトのチャンクサイズ（文字数）
 MODEL_NAME = "all-MiniLM-L6-v2"  # 埋め込みモデル名
 
 
 def parse_args(argv=None):
     """
-    コマンドライン引数を解析する関数。
-    
+    コマンドライン引数をパースしてNamespaceオブジェクトとして返す関数。
+
+    Args:
+        argv (list[str] | None): コマンドライン引数のリスト（例: ["--data_dir", "texts"]）。
+            Noneの場合はsys.argvから自動取得。
+
     Returns:
-        argparse.Namespace: 解析された引数オブジェクト
+        argparse.Namespace: パースされた引数を格納したNamespaceオブジェクト。
+        Namespace(
+            data_dir='texts',
+            collection='documents',
+            chunk=500,
+            mode='fixed',
+            host=None,
+            port=None
+        )
     """
     parser = argparse.ArgumentParser(description="テキスト/markdown/pdfファイルをQdrantにインジェスト")
     parser.add_argument("--data_dir", type=str, default="texts", help=".txt / .md / .pdf ファイルのディレクトリ")
     parser.add_argument("--collection", type=str, default="documents", help="Qdrantコレクション名")
     parser.add_argument("--chunk", type=int, default=DEFAULT_CHUNK_SIZE, help="チャンクサイズ（文字数）")
     parser.add_argument("--mode", type=str, choices=["fixed", "markdown", "markdown-smart"], default="fixed", help="チャンク化モード")
-    parser.add_argument("--host", type=str, default="localhost", help="Qdrantホスト")
-    parser.add_argument("--port", type=int, default=6333, help="Qdrant RESTポート")
+    parser.add_argument("--host", type=str, help="Qdrantホスト")
+    parser.add_argument("--port", type=int, help="Qdrant RESTポート")
     return parser.parse_args(argv)
 
 
@@ -176,7 +189,7 @@ def ensure_collection(client: QdrantClient, name: str, dim: int):
         print(f"[+] コレクション '{name}' を作成しました")
         
 
-def ingest_directory(args):
+def ingest_directory(args: argparse.Namespace):
     """
     指定ディレクトリ内のテキスト/Markdown/PDFファイルをQdrantにインジェストするメイン関数。
 

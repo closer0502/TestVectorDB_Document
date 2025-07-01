@@ -12,6 +12,8 @@ import os
 from search import SearchEngine
 from vectorDB.ingest_qdrant import ingest_directory, parse_args as ingest_args, ensure_collection
 from qdrant_client import QdrantClient
+from config import Settings
+
 
 app = FastAPI(title="Qdrant Semantic Search API")
 # 追加: MCPサーバーのセットアップ
@@ -19,7 +21,11 @@ mcp = FastApiMCP(app)
 mcp.mount()  # /mcp エンドポイントをFastAPIアプリに追加
 
 engine = SearchEngine()
-qdrant = QdrantClient("localhost", port=6333)
+
+qdrant = QdrantClient(
+    host=Settings.QDRANT_HOST,
+    port=Settings.QDRANT_PORT,
+)
 
 UPLOAD_DIR = "uploaded"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -61,9 +67,12 @@ async def ingest(
     args.data_dir = UPLOAD_DIR
     args.collection = collection
     args.mode = mode
+    args.port = Settings.QDRANT_PORT
+    args.host = Settings.QDRANT_HOST
+    
 
     try:
-        ingest_directory(args)
+        ingest_directory(3)
         return {"status": "success", "filename": filename, "collection": collection}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
