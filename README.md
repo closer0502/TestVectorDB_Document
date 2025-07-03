@@ -32,13 +32,34 @@ project-root/
 - Python 3.11.2
 - Docker（Qdrant用）
 
-### 1. 依存関係のインストール
+### 自動セットアップ（推奨）
+
+#### Windows
+```bash
+setup_env.bat
+```
+
+#### Linux/macOS
+```bash
+chmod +x setup_env.sh
+./setup_env.sh
+```
+
+セットアップスクリプトは以下を自動実行します：
+- Python仮想環境の作成
+- 必要ライブラリのインストール
+- 必要ディレクトリの作成
+- QdrantのDocker起動
+
+### 手動セットアップ
+
+#### 1. 依存関係のインストール
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Qdrantの起動
+#### 2. Qdrantの起動
 
 Dockerを使用してQdrantを起動します：
 
@@ -46,14 +67,19 @@ Dockerを使用してQdrantを起動します：
 docker run -p 6333:6333 qdrant/qdrant
 ```
 
-### 3. テキストファイルの配置
+#### 3. テキストファイルの配置
 
 `texts/`ディレクトリに処理したい`.txt`または`.md`ファイルを配置します。
 
-### 4. メインスクリプトの実行
+#### 4. メインスクリプトの実行
 
 ```bash
 python text2qdrant.py
+```
+
+**注意**: Linux/macOSの場合、セットアップスクリプト実行後に仮想環境を有効化してください：
+```bash
+source venv/bin/activate
 ```
 
 ## 🚀 使用方法
