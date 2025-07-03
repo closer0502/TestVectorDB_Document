@@ -72,7 +72,7 @@ async def ingest(
     
 
     try:
-        ingest_directory(3)
+        ingest_directory(args)
         return {"status": "success", "filename": filename, "collection": collection}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

@@ -84,10 +84,66 @@ source venv/bin/activate
 
 ## 🚀 使用方法
 
+### CLI版
 1. **ファイル処理**: `texts/`フォルダ内のすべてのファイルが自動的に処理されます
 2. **ベクトル化**: 各ファイルが500文字単位でチャンクに分割され、ベクトル化されます
 3. **検索**: スクリプト実行後、対話形式で検索クエリを入力できます
 4. **終了**: 検索プロンプトで`q`を入力すると終了します
+
+### Web API版
+FastAPIを使用したWeb APIサーバーも利用できます：
+
+```bash
+uvicorn run_fastapi:app --reload
+```
+
+サーバー起動後、`http://localhost:8000/docs`でSwagger UIが確認できます。
+
+## 🔌 API エンドポイント
+
+### 検索API
+```bash
+# 検索クエリの実行
+curl -X POST "http://localhost:8000/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "検索したい内容", "limit": 5}'
+```
+
+### ファイルアップロード・インジェスト
+```bash
+# ファイルをアップロードしてベクトル化
+curl -X POST "http://localhost:8000/ingest" \
+  -F "file=@sample.txt" \
+  -F "collection=documents" \
+  -F "mode=fixed"
+```
+
+### データ削除
+```bash
+# コレクション全体の削除
+curl -X POST "http://localhost:8000/delete_all_points" \
+  -F "collection=documents"
+
+# 特定ポイントの削除
+curl -X POST "http://localhost:8000/delete_point" \
+  -F "collection=documents" \
+  -F "point_id=12345"
+
+# アップロードファイルの削除
+curl -X POST "http://localhost:8000/delete_uploaded_file" \
+  -F "filename=sample.txt"
+
+# アップロードファイル全削除
+curl -X POST "http://localhost:8000/delete_uploaded_all_files"
+```
+
+利用可能なエンドポイント一覧：
+- `POST /search` - 自然言語検索
+- `POST /ingest` - ファイルアップロード・インジェスト
+- `POST /delete_all_points` - コレクション削除
+- `POST /delete_point` - 特定ポイント削除
+- `POST /delete_uploaded_file` - アップロードファイル削除
+- `POST /delete_uploaded_all_files` - アップロードファイル全削除
 
 ## ⚙️ 設定項目
 
